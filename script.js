@@ -70,6 +70,7 @@ class ExperimentTracker {
             }
             
             this.experimentData = docSnap.data();
+            console.log('Loaded experiment data:', this.experimentData); // Debug log
             this.displayExperimentData();
             this.isDataLoaded = true;
             
@@ -108,30 +109,33 @@ class ExperimentTracker {
                 this.experimentData.timestamp.toDate() : 
                 new Date(this.experimentData.timestamp);
             document.getElementById('timestamp').textContent = date.toLocaleString();
+        } else if (this.experimentData.metadata && this.experimentData.metadata.uploaded_at) {
+            const date = new Date(this.experimentData.metadata.uploaded_at);
+            document.getElementById('timestamp').textContent = date.toLocaleString();
         } else {
             document.getElementById('timestamp').textContent = 'Unknown';
         }
         
         // Display JSON data
         const jsonDisplay = document.getElementById('json-display');
-        jsonDisplay.innerHTML = this.renderJSON(this.experimentData.data, 'Experimental Data');
+        jsonDisplay.innerHTML = this.renderJSON(this.experimentData.data, 'Experimental Data', 0, true);
     }
     
-    renderJSON(data, key = null, level = 0) {
+    renderJSON(data, key = null, level = 0, isRoot = false) {
         if (data === null) {
-            return `<div class="json-value null">null</div>`;
+            return this.createValueElement('null', 'null');
         }
         
         if (typeof data === 'string') {
-            return `<div class="json-value string">"${this.escapeHtml(data)}"</div>`;
+            return this.createValueElement(`"${this.escapeHtml(data)}"`, 'string', key);
         }
         
         if (typeof data === 'number') {
-            return `<div class="json-value number">${data}</div>`;
+            return this.createValueElement(data, 'number', key);
         }
         
         if (typeof data === 'boolean') {
-            return `<div class="json-value boolean">${data}</div>`;
+            return this.createValueElement(data, 'boolean', key);
         }
         
         if (Array.isArray(data)) {
@@ -139,39 +143,53 @@ class ExperimentTracker {
         }
         
         if (typeof data === 'object') {
-            return this.renderObject(data, key, level);
+            return this.renderObject(data, key, level, isRoot);
         }
         
-        return `<div class="json-value">${this.escapeHtml(String(data))}</div>`;
+        return this.createValueElement(this.escapeHtml(String(data)), 'unknown', key);
     }
     
-    renderObject(obj, key, level) {
+    createValueElement(value, type, key = null) {
+        let html = '';
+        if (key) {
+            html += `<div class="json-property">
+                <span class="json-key-label">${this.escapeHtml(key)}:</span>
+                <span class="json-value ${type}">${value}</span>
+            </div>`;
+        } else {
+            html += `<div class="json-value ${type}">${value}</div>`;
+        }
+        return html;
+    }
+    
+    renderObject(obj, key, level, isRoot = false) {
         const id = `obj-${Math.random().toString(36).substr(2, 9)}`;
         const entries = Object.entries(obj);
         
         if (entries.length === 0) {
-            return `<div class="json-value">{}</div>`;
+            return key ? this.createValueElement('{}', 'object', key) : '<div class="json-value object">{}</div>';
         }
         
         let html = '';
-        if (key) {
+        
+        // For root level, don't show a collapsible header
+        if (!isRoot && key) {
             html += `
                 <div class="json-key" onclick="toggleSection('${id}')">
                     <i class="fas fa-chevron-down"></i>
                     <strong>${this.escapeHtml(key)}</strong>
-                    <span style="color: #7f8c8d; font-weight: normal;">({${entries.length} ${entries.length === 1 ? 'property' : 'properties'}})</span>
+                    <span class="json-count">({${entries.length} ${entries.length === 1 ? 'property' : 'properties'}})</span>
                 </div>
             `;
+        } else if (isRoot) {
+            html += `<div class="json-root-label">Experimental Data (${entries.length} ${entries.length === 1 ? 'property' : 'properties'})</div>`;
         }
         
-        html += `<div class="json-content" id="${id}">`;
+        const contentClass = isRoot ? 'json-root-content' : 'json-content';
+        html += `<div class="${contentClass}" ${!isRoot ? `id="${id}"` : ''}>`;
         
         entries.forEach(([childKey, childValue]) => {
-            html += `
-                <div class="json-object">
-                    ${this.renderJSON(childValue, childKey, level + 1)}
-                </div>
-            `;
+            html += `<div class="json-item">${this.renderJSON(childValue, childKey, level + 1)}</div>`;
         });
         
         html += '</div>';
@@ -183,7 +201,7 @@ class ExperimentTracker {
         const id = `arr-${Math.random().toString(36).substr(2, 9)}`;
         
         if (arr.length === 0) {
-            return `<div class="json-value">[]</div>`;
+            return key ? this.createValueElement('[]', 'array', key) : '<div class="json-value array">[]</div>';
         }
         
         let html = '';
@@ -192,7 +210,7 @@ class ExperimentTracker {
                 <div class="json-key" onclick="toggleSection('${id}')">
                     <i class="fas fa-chevron-down"></i>
                     <strong>${this.escapeHtml(key)}</strong>
-                    <span style="color: #7f8c8d; font-weight: normal;">[${arr.length} ${arr.length === 1 ? 'item' : 'items'}]</span>
+                    <span class="json-count">[${arr.length} ${arr.length === 1 ? 'item' : 'items'}]</span>
                 </div>
             `;
         }
@@ -201,9 +219,11 @@ class ExperimentTracker {
         
         arr.forEach((item, index) => {
             html += `
-                <div class="json-array">
-                    <span class="array-index">[${index}]</span>
-                    ${this.renderJSON(item, null, level + 1)}
+                <div class="json-item">
+                    <div class="array-item">
+                        <span class="array-index">[${index}]</span>
+                        <div class="array-value">${this.renderJSON(item, null, level + 1)}</div>
+                    </div>
                 </div>
             `;
         });
@@ -241,8 +261,14 @@ class ExperimentTracker {
     }
     
     async exportToPDF() {
-        if (!this.isDataLoaded || !window.jsPDF) {
-            alert('PDF export is not available. Please make sure the data is loaded.');
+        if (!this.isDataLoaded) {
+            alert('Please wait for the data to load before exporting to PDF.');
+            return;
+        }
+        
+        // Check if jsPDF is available
+        if (!window.jsPDF) {
+            alert('PDF export library is not available. Please refresh the page and try again.');
             return;
         }
         
@@ -268,6 +294,10 @@ class ExperimentTracker {
                     new Date(this.experimentData.timestamp);
                 pdf.text(`Date: ${date.toLocaleString()}`, 20, yPos);
                 yPos += 20;
+            } else if (this.experimentData.metadata && this.experimentData.metadata.uploaded_at) {
+                const date = new Date(this.experimentData.metadata.uploaded_at);
+                pdf.text(`Date: ${date.toLocaleString()}`, 20, yPos);
+                yPos += 20;
             }
             
             // JSON Data
@@ -285,12 +315,13 @@ class ExperimentTracker {
             });
             
             // Save PDF
-            const filename = `experiment_${this.experimentId.substr(0, 8)}_${new Date().toISOString().split('T')[0]}.pdf`;
+            const timestamp = new Date().toISOString().split('T')[0];
+            const filename = `experiment_${this.experimentId.substring(0, 8)}_${timestamp}.pdf`;
             pdf.save(filename);
             
         } catch (error) {
             console.error('Error exporting PDF:', error);
-            alert('Failed to export PDF. Please try again.');
+            alert('Failed to export PDF. Please try again or check the browser console for details.');
         }
     }
 }
@@ -308,15 +339,35 @@ function toggleSection(id) {
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    // Wait a bit for Firebase to initialize
-    setTimeout(() => {
-        new ExperimentTracker();
-    }, 1000);
+    console.log('DOM loaded, checking Firebase...');
+    
+    // Check Firebase availability with retries
+    let retryCount = 0;
+    const maxRetries = 10;
+    
+    const initializeApp = () => {
+        if (window.firebase && window.firebase.db) {
+            console.log('Firebase is ready, initializing ExperimentTracker...');
+            new ExperimentTracker();
+        } else if (retryCount < maxRetries) {
+            retryCount++;
+            console.log(`Firebase not ready yet, retry ${retryCount}/${maxRetries}...`);
+            setTimeout(initializeApp, 500);
+        } else {
+            console.error('Firebase failed to initialize after maximum retries');
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error-message').textContent = 'Firebase initialization timeout. Please refresh the page.';
+        }
+    };
+    
+    // Start initialization
+    initializeApp();
 });
 
 // Handle Firebase initialization errors
 window.addEventListener('error', (event) => {
-    if (event.message.includes('Firebase')) {
+    if (event.message && event.message.includes('Firebase')) {
         console.error('Firebase initialization error:', event.error);
         document.getElementById('loading').style.display = 'none';
         document.getElementById('error').style.display = 'block';

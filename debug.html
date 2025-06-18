@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Experiment Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-flask"></i> Debug - Experiment Tracker</h1>
+            <p>Testing JSON Display and PDF Export</p>
+        </header>
+
+        <main class="main-content">
+            <div class="data-container">
+                <div class="experiment-header">
+                    <div class="experiment-info">
+                        <h2>Test Experimental Setup</h2>
+                        <div class="metadata">
+                            <span class="metadata-item">
+                                <i class="fas fa-file"></i>
+                                <span>test_experiment.json</span>
+                            </span>
+                            <span class="metadata-item">
+                                <i class="fas fa-clock"></i>
+                                <span>2025-01-18 10:30:00</span>
+                            </span>
+                            <span class="metadata-item">
+                                <i class="fas fa-tag"></i>
+                                <span>test-123</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button id="export-pdf" class="btn btn-secondary">
+                            <i class="fas fa-file-pdf"></i> Export PDF
+                        </button>
+                        <button id="expand-all" class="btn btn-secondary">
+                            <i class="fas fa-expand-alt"></i> Expand All
+                        </button>
+                        <button id="collapse-all" class="btn btn-secondary">
+                            <i class="fas fa-compress-alt"></i> Collapse All
+                        </button>
+                    </div>
+                </div>
+
+                <div class="data-display" id="json-display">
+                    <!-- JSON data will be rendered here -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Test data
+        const testData = {
+            "experiment_type": "tensile_test",
+            "material": "aluminum_6061",
+            "specimen_id": "T001",
+            "date": "2025-01-18",
+            "operator": "PhD Student",
+            "test_parameters": {
+                "strain_rate": 0.001,
+                "temperature": 23,
+                "humidity": 45,
+                "crosshead_speed": 2.5,
+                "gauge_length": 50
+            },
+            "specimen_dimensions": {
+                "thickness": 3.2,
+                "width": 12.5,
+                "length": 200
+            },
+            "results": {
+                "yield_strength": 276,
+                "ultimate_strength": 310,
+                "elongation": 12.5,
+                "elastic_modulus": 69000,
+                "fracture_location": "center"
+            },
+            "data_files": [
+                "T001_force_displacement.csv",
+                "T001_strain_gauge.csv"
+            ],
+            "notes": "Standard tensile test according to ASTM E8. Specimen prepared using waterjet cutting.",
+            "quality_control": {
+                "visual_inspection": "passed",
+                "dimensional_check": "within_tolerance",
+                "surface_condition": "acceptable"
+            }
+        };
+
+        // Simple JSON renderer (copy from main script)
+        function renderJSON(data, key = null, level = 0, isRoot = false) {
+            if (data === null) {
+                return createValueElement('null', 'null');
+            }
+            
+            if (typeof data === 'string') {
+                return createValueElement(`"${escapeHtml(data)}"`, 'string', key);
+            }
+            
+            if (typeof data === 'number') {
+                return createValueElement(data, 'number', key);
+            }
+            
+            if (typeof data === 'boolean') {
+                return createValueElement(data, 'boolean', key);
+            }
+            
+            if (Array.isArray(data)) {
+                return renderArray(data, key, level);
+            }
+            
+            if (typeof data === 'object') {
+                return renderObject(data, key, level, isRoot);
+            }
+            
+            return createValueElement(escapeHtml(String(data)), 'unknown', key);
+        }
+
+        function createValueElement(value, type, key = null) {
+            let html = '';
+            if (key) {
+                html += `<div class="json-property">
+                    <span class="json-key-label">${escapeHtml(key)}:</span>
+                    <span class="json-value ${type}">${value}</span>
+                </div>`;
+            } else {
+                html += `<div class="json-value ${type}">${value}</div>`;
+            }
+            return html;
+        }
+
+        function renderObject(obj, key, level, isRoot = false) {
+            const id = `obj-${Math.random().toString(36).substr(2, 9)}`;
+            const entries = Object.entries(obj);
+            
+            if (entries.length === 0) {
+                return key ? createValueElement('{}', 'object', key) : '<div class="json-value object">{}</div>';
+            }
+            
+            let html = '';
+            
+            if (!isRoot && key) {
+                html += `
+                    <div class="json-key" onclick="toggleSection('${id}')">
+                        <i class="fas fa-chevron-down"></i>
+                        <strong>${escapeHtml(key)}</strong>
+                        <span class="json-count">({${entries.length} ${entries.length === 1 ? 'property' : 'properties'}})</span>
+                    </div>
+                `;
+            } else if (isRoot) {
+                html += `<div class="json-root-label">Experimental Data (${entries.length} ${entries.length === 1 ? 'property' : 'properties'})</div>`;
+            }
+            
+            const contentClass = isRoot ? 'json-root-content' : 'json-content';
+            html += `<div class="${contentClass}" ${!isRoot ? `id="${id}"` : ''}>`;
+            
+            entries.forEach(([childKey, childValue]) => {
+                html += `<div class="json-item">${renderJSON(childValue, childKey, level + 1)}</div>`;
+            });
+            
+            html += '</div>';
+            
+            return html;
+        }
+
+        function renderArray(arr, key, level) {
+            const id = `arr-${Math.random().toString(36).substr(2, 9)}`;
+            
+            if (arr.length === 0) {
+                return key ? createValueElement('[]', 'array', key) : '<div class="json-value array">[]</div>';
+            }
+            
+            let html = '';
+            if (key) {
+                html += `
+                    <div class="json-key" onclick="toggleSection('${id}')">
+                        <i class="fas fa-chevron-down"></i>
+                        <strong>${escapeHtml(key)}</strong>
+                        <span class="json-count">[${arr.length} ${arr.length === 1 ? 'item' : 'items'}]</span>
+                    </div>
+                `;
+            }
+            
+            html += `<div class="json-content" id="${id}">`;
+            
+            arr.forEach((item, index) => {
+                html += `
+                    <div class="json-item">
+                        <div class="array-item">
+                            <span class="array-index">[${index}]</span>
+                            <div class="array-value">${renderJSON(item, null, level + 1)}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            
+            return html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function toggleSection(id) {
+            const section = document.getElementById(id);
+            const key = document.querySelector(`[onclick="toggleSection('${id}')"]`);
+            
+            if (section && key) {
+                section.classList.toggle('collapsed');
+                key.classList.toggle('collapsed');
+            }
+        }
+
+        function toggleAllSections(collapse) {
+            const sections = document.querySelectorAll('.json-content');
+            const keys = document.querySelectorAll('.json-key');
+            
+            sections.forEach(section => {
+                if (collapse) {
+                    section.classList.add('collapsed');
+                } else {
+                    section.classList.remove('collapsed');
+                }
+            });
+            
+            keys.forEach(key => {
+                if (collapse) {
+                    key.classList.add('collapsed');
+                } else {
+                    key.classList.remove('collapsed');
+                }
+            });
+        }
+
+        function exportToPDF() {
+            if (!window.jsPDF) {
+                alert('PDF export library is not available. Please refresh the page and try again.');
+                return;
+            }
+            
+            try {
+                const { jsPDF } = window.jsPDF;
+                const pdf = new jsPDF();
+                
+                pdf.setFontSize(20);
+                pdf.text('Test Experimental Setup Data', 20, 30);
+                
+                pdf.setFontSize(12);
+                let yPos = 50;
+                pdf.text('File: test_experiment.json', 20, yPos);
+                yPos += 10;
+                pdf.text('ID: test-123', 20, yPos);
+                yPos += 10;
+                pdf.text('Date: 2025-01-18 10:30:00', 20, yPos);
+                yPos += 20;
+                
+                pdf.setFontSize(10);
+                const jsonText = JSON.stringify(testData, null, 2);
+                const lines = pdf.splitTextToSize(jsonText, 170);
+                
+                lines.forEach(line => {
+                    if (yPos > 280) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+                    pdf.text(line, 20, yPos);
+                    yPos += 5;
+                });
+                
+                pdf.save('test_experiment.pdf');
+                alert('PDF exported successfully!');
+                
+            } catch (error) {
+                console.error('Error exporting PDF:', error);
+                alert('Failed to export PDF: ' + error.message);
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Debug page loaded');
+            console.log('Test data:', testData);
+            console.log('jsPDF available:', !!window.jsPDF);
+            
+            // Render test data
+            const jsonDisplay = document.getElementById('json-display');
+            jsonDisplay.innerHTML = renderJSON(testData, 'Experimental Data', 0, true);
+            
+            // Set up event listeners
+            document.getElementById('export-pdf').addEventListener('click', exportToPDF);
+            document.getElementById('expand-all').addEventListener('click', () => toggleAllSections(false));
+            document.getElementById('collapse-all').addEventListener('click', () => toggleAllSections(true));
+        });
+    </script>
+</body>
+</html> 
