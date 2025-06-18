@@ -266,10 +266,27 @@ class ExperimentTracker {
             return;
         }
         
-        // Check if jsPDF is available
+        // Try multiple PDF export methods
+        if (await this.tryJsPDFExport()) {
+            return; // Success with jsPDF
+        } else if (this.tryBrowserPrint()) {
+            return; // Success with browser print
+        } else {
+            this.fallbackTextExport(); // Fallback to text download
+        }
+    }
+    
+    async tryJsPDFExport() {
+        // Wait a bit for jsPDF to load if it's still loading
+        let attempts = 0;
+        while (!window.jsPDF && attempts < 20) {
+            await new Promise(resolve => setTimeout(resolve, 250));
+            attempts++;
+        }
+        
         if (!window.jsPDF) {
-            alert('PDF export library is not available. Please refresh the page and try again.');
-            return;
+            console.log('jsPDF not available after waiting');
+            return false;
         }
         
         try {
@@ -319,9 +336,142 @@ class ExperimentTracker {
             const filename = `experiment_${this.experimentId.substring(0, 8)}_${timestamp}.pdf`;
             pdf.save(filename);
             
+            console.log('PDF exported successfully via jsPDF');
+            return true;
+            
         } catch (error) {
-            console.error('Error exporting PDF:', error);
-            alert('Failed to export PDF. Please try again or check the browser console for details.');
+            console.error('Error exporting PDF via jsPDF:', error);
+            return false;
+        }
+    }
+    
+    tryBrowserPrint() {
+        try {
+            // Create a printable version
+            const printContent = this.createPrintableContent();
+            const printWindow = window.open('', '_blank');
+            
+            if (!printWindow) {
+                alert('Popup blocked. Please allow popups and try again.');
+                return false;
+            }
+            
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Experiment Data - ${this.experimentId}</title>
+                    <style>
+                        body { 
+                            font-family: Arial, sans-serif; 
+                            margin: 20px; 
+                            line-height: 1.4;
+                        }
+                        .header { 
+                            border-bottom: 2px solid #333; 
+                            padding-bottom: 10px; 
+                            margin-bottom: 20px; 
+                        }
+                        .metadata { margin-bottom: 20px; }
+                        .json-data { 
+                            background: #f5f5f5; 
+                            padding: 15px; 
+                            border-radius: 5px;
+                            white-space: pre-wrap;
+                            font-family: monospace;
+                        }
+                        @media print {
+                            body { margin: 0; }
+                            .no-print { display: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${printContent}
+                    <div class="no-print" style="margin-top: 20px;">
+                        <button onclick="window.print()">Print to PDF</button>
+                        <button onclick="window.close()">Close</button>
+                    </div>
+                </body>
+                </html>
+            `);
+            
+            printWindow.document.close();
+            
+            // Auto-trigger print dialog
+            setTimeout(() => {
+                printWindow.print();
+            }, 500);
+            
+            console.log('Opened print dialog as PDF fallback');
+            return true;
+            
+        } catch (error) {
+            console.error('Error with browser print method:', error);
+            return false;
+        }
+    }
+    
+    createPrintableContent() {
+        const timestamp = this.experimentData.timestamp ? 
+            (this.experimentData.timestamp.toDate ? 
+                this.experimentData.timestamp.toDate() : 
+                new Date(this.experimentData.timestamp)).toLocaleString() :
+            (this.experimentData.metadata && this.experimentData.metadata.uploaded_at ? 
+                new Date(this.experimentData.metadata.uploaded_at).toLocaleString() : 
+                'Unknown');
+                
+        return `
+            <div class="header">
+                <h1>Experimental Setup Data</h1>
+            </div>
+            <div class="metadata">
+                <p><strong>File:</strong> ${this.experimentData.filename || 'Unknown'}</p>
+                <p><strong>ID:</strong> ${this.experimentId}</p>
+                <p><strong>Date:</strong> ${timestamp}</p>
+            </div>
+            <div class="json-data">
+                <h3>Experimental Data:</h3>
+                ${JSON.stringify(this.experimentData.data, null, 2)}
+            </div>
+        `;
+    }
+    
+    fallbackTextExport() {
+        try {
+            const timestamp = this.experimentData.timestamp ? 
+                (this.experimentData.timestamp.toDate ? 
+                    this.experimentData.timestamp.toDate() : 
+                    new Date(this.experimentData.timestamp)).toLocaleString() :
+                (this.experimentData.metadata && this.experimentData.metadata.uploaded_at ? 
+                    new Date(this.experimentData.metadata.uploaded_at).toLocaleString() : 
+                    'Unknown');
+                    
+            const content = `EXPERIMENTAL SETUP DATA
+============================
+
+File: ${this.experimentData.filename || 'Unknown'}
+ID: ${this.experimentId}
+Date: ${timestamp}
+
+EXPERIMENTAL DATA:
+${JSON.stringify(this.experimentData.data, null, 2)}
+`;
+            
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `experiment_${this.experimentId.substring(0, 8)}_${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            alert('PDF export not available. Data downloaded as text file instead.');
+            console.log('Exported as text file fallback');
+            
+        } catch (error) {
+            console.error('Error with text fallback export:', error);
+            alert('Export failed. Please copy the data manually.');
         }
     }
 }

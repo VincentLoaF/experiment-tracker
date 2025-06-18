@@ -6,11 +6,34 @@
     <title>Experiment Tracker</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- jsPDF Library with multiple CDN fallbacks -->
+    <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
     <script>
-        // Ensure jsPDF is available globally after loading
+        // Fallback CDN loading for jsPDF
         window.addEventListener('load', () => {
-            console.log('jsPDF loaded:', !!window.jsPDF);
+            console.log('jsPDF loaded from unpkg:', !!window.jsPDF);
+            
+            if (!window.jsPDF) {
+                console.log('First CDN failed, trying alternative...');
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                script.onload = () => {
+                    console.log('jsPDF loaded from cdnjs:', !!window.jsPDF);
+                };
+                script.onerror = () => {
+                    console.log('Second CDN failed, trying jsdelivr...');
+                    const script2 = document.createElement('script');
+                    script2.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+                    script2.onload = () => {
+                        console.log('jsPDF loaded from jsdelivr:', !!window.jsPDF);
+                    };
+                    script2.onerror = () => {
+                        console.error('All CDNs failed to load jsPDF');
+                    };
+                    document.head.appendChild(script2);
+                };
+                document.head.appendChild(script);
+            }
         });
     </script>
 </head>
