@@ -347,69 +347,113 @@ class ExperimentTracker {
     
     tryBrowserPrint() {
         try {
-            // Create a printable version
-            const printContent = this.createPrintableContent();
-            const printWindow = window.open('', '_blank');
-            
-            if (!printWindow) {
-                alert('Popup blocked. Please allow popups and try again.');
-                return false;
-            }
-            
-            printWindow.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Experiment Data - ${this.experimentId}</title>
-                    <style>
-                        body { 
-                            font-family: Arial, sans-serif; 
-                            margin: 20px; 
-                            line-height: 1.4;
-                        }
-                        .header { 
-                            border-bottom: 2px solid #333; 
-                            padding-bottom: 10px; 
-                            margin-bottom: 20px; 
-                        }
-                        .metadata { margin-bottom: 20px; }
-                        .json-data { 
-                            background: #f5f5f5; 
-                            padding: 15px; 
-                            border-radius: 5px;
-                            white-space: pre-wrap;
-                            font-family: monospace;
-                        }
-                        @media print {
-                            body { margin: 0; }
-                            .no-print { display: none; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    ${printContent}
-                    <div class="no-print" style="margin-top: 20px;">
-                        <button onclick="window.print()">Print to PDF</button>
-                        <button onclick="window.close()">Close</button>
-                    </div>
-                </body>
-                </html>
-            `);
-            
-            printWindow.document.close();
-            
-            // Auto-trigger print dialog
-            setTimeout(() => {
-                printWindow.print();
-            }, 500);
-            
-            console.log('Opened print dialog as PDF fallback');
+            // Instead of popup, create a printable view in the current page
+            this.showPrintableView();
+            console.log('Showing in-page printable view');
             return true;
             
         } catch (error) {
             console.error('Error with browser print method:', error);
             return false;
         }
+    }
+    
+    showPrintableView() {
+        // Create overlay with printable content
+        const overlay = document.createElement('div');
+        overlay.id = 'print-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        `;
+        
+        const printContainer = document.createElement('div');
+        printContainer.style.cssText = `
+            background: white;
+            border-radius: 10px;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        `;
+        
+        const printContent = this.createPrintableContent();
+        printContainer.innerHTML = `
+            <div style="padding: 30px;">
+                ${printContent}
+                <div style="margin-top: 30px; text-align: center; border-top: 1px solid #ddd; padding-top: 20px;">
+                    <button id="do-print" style="background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; margin: 0 10px; font-size: 16px;">🖨️ Print/Save as PDF</button>
+                    <button id="copy-data" style="background: #27ae60; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; margin: 0 10px; font-size: 16px;">📋 Copy Data</button>
+                    <button id="download-text" style="background: #e67e22; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; margin: 0 10px; font-size: 16px;">💾 Download Text</button>
+                    <button id="close-print" style="background: #95a5a6; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; margin: 0 10px; font-size: 16px;">❌ Close</button>
+                </div>
+            </div>
+        `;
+        
+        overlay.appendChild(printContainer);
+        document.body.appendChild(overlay);
+        
+        // Add event listeners
+        document.getElementById('do-print').addEventListener('click', () => {
+            window.print();
+        });
+        
+        document.getElementById('copy-data').addEventListener('click', () => {
+            this.copyDataToClipboard();
+        });
+        
+        document.getElementById('download-text').addEventListener('click', () => {
+            this.fallbackTextExport();
+        });
+        
+        document.getElementById('close-print').addEventListener('click', () => {
+            document.body.removeChild(overlay);
+        });
+        
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+            }
+        });
+        
+        // Add print styles
+        const printStyles = document.createElement('style');
+        printStyles.innerHTML = `
+            @media print {
+                body * {
+                    visibility: hidden;
+                }
+                #print-overlay, #print-overlay * {
+                    visibility: visible;
+                }
+                #print-overlay {
+                    position: static !important;
+                    background: white !important;
+                    padding: 0 !important;
+                }
+                #print-overlay > div {
+                    box-shadow: none !important;
+                    max-height: none !important;
+                    overflow: visible !important;
+                }
+                #print-overlay button {
+                    display: none !important;
+                }
+            }
+        `;
+        document.head.appendChild(printStyles);
     }
     
     createPrintableContent() {
@@ -435,6 +479,53 @@ class ExperimentTracker {
                 ${JSON.stringify(this.experimentData.data, null, 2)}
             </div>
         `;
+    }
+    
+    copyDataToClipboard() {
+        try {
+            const timestamp = this.experimentData.timestamp ? 
+                (this.experimentData.timestamp.toDate ? 
+                    this.experimentData.timestamp.toDate() : 
+                    new Date(this.experimentData.timestamp)).toLocaleString() :
+                (this.experimentData.metadata && this.experimentData.metadata.uploaded_at ? 
+                    new Date(this.experimentData.metadata.uploaded_at).toLocaleString() : 
+                    'Unknown');
+                    
+            const content = `EXPERIMENTAL SETUP DATA
+============================
+
+File: ${this.experimentData.filename || 'Unknown'}
+ID: ${this.experimentId}
+Date: ${timestamp}
+
+EXPERIMENTAL DATA:
+${JSON.stringify(this.experimentData.data, null, 2)}`;
+
+            navigator.clipboard.writeText(content).then(() => {
+                alert('✅ Experimental data copied to clipboard! You can now paste it into any document.');
+                console.log('Data copied to clipboard successfully');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = content;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    alert('✅ Experimental data copied to clipboard! You can now paste it into any document.');
+                    console.log('Data copied to clipboard via fallback method');
+                } catch (err) {
+                    alert('❌ Could not copy to clipboard. Please copy the data manually.');
+                    console.error('Copy to clipboard failed:', err);
+                }
+                document.body.removeChild(textArea);
+            });
+        } catch (error) {
+            console.error('Error copying to clipboard:', error);
+            alert('❌ Could not copy to clipboard. Please try the download option instead.');
+        }
     }
     
     fallbackTextExport() {
@@ -463,15 +554,17 @@ ${JSON.stringify(this.experimentData.data, null, 2)}
             const a = document.createElement('a');
             a.href = url;
             a.download = `experiment_${this.experimentId.substring(0, 8)}_${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
             URL.revokeObjectURL(url);
             
-            alert('PDF export not available. Data downloaded as text file instead.');
+            alert('✅ Data downloaded as text file successfully!');
             console.log('Exported as text file fallback');
             
         } catch (error) {
             console.error('Error with text fallback export:', error);
-            alert('Export failed. Please copy the data manually.');
+            alert('❌ Export failed. Please copy the data manually.');
         }
     }
 }
