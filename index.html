@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Experiment Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-flask"></i> Experiment Tracker</h1>
+            <p>QR Code-Based Experimental Setup Data Viewer</p>
+        </header>
+
+        <main class="main-content">
+            <!-- Loading State -->
+            <div id="loading" class="loading-container">
+                <div class="spinner"></div>
+                <p>Loading experimental data...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="error" class="error-container" style="display: none;">
+                <div class="error-content">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h2>Error Loading Data</h2>
+                    <p id="error-message">Unable to load experimental data.</p>
+                    <button id="retry-btn" class="btn btn-primary">
+                        <i class="fas fa-redo"></i> Retry
+                    </button>
+                </div>
+            </div>
+
+            <!-- Data Display -->
+            <div id="data-container" class="data-container" style="display: none;">
+                <div class="experiment-header">
+                    <div class="experiment-info">
+                        <h2 id="experiment-title">Experimental Setup</h2>
+                        <div class="metadata">
+                            <span class="metadata-item">
+                                <i class="fas fa-file"></i>
+                                <span id="filename">Loading...</span>
+                            </span>
+                            <span class="metadata-item">
+                                <i class="fas fa-clock"></i>
+                                <span id="timestamp">Loading...</span>
+                            </span>
+                            <span class="metadata-item">
+                                <i class="fas fa-tag"></i>
+                                <span id="experiment-id">Loading...</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button id="export-pdf" class="btn btn-secondary">
+                            <i class="fas fa-file-pdf"></i> Export PDF
+                        </button>
+                        <button id="expand-all" class="btn btn-secondary">
+                            <i class="fas fa-expand-alt"></i> Expand All
+                        </button>
+                        <button id="collapse-all" class="btn btn-secondary">
+                            <i class="fas fa-compress-alt"></i> Collapse All
+                        </button>
+                    </div>
+                </div>
+
+                <div class="data-display" id="json-display">
+                    <!-- JSON data will be rendered here -->
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2025 Mechanical Engineering Research Lab | QR Experiment Tracker v1.0</p>
+        </footer>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        
+        // Firebase configuration (replace with your config)
+        const firebaseConfig = {
+          apiKey: "AIzaSyBbi8NTfmNhbL9i65dNRAnk65ePSOj0Ro8",
+          authDomain: "sfqr-4c3af.firebaseapp.com",
+          projectId: "sfqr-4c3af",
+          storageBucket: "sfqr-4c3af.firebasestorage.app",
+          messagingSenderId: "830128036781",
+          appId: "1:830128036781:web:7aa010a425080dc3819f24",
+          measurementId: "G-4K0HDBLWCG"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Make Firebase available globally
+        window.firebase = { db, doc, getDoc };
+    </script>
+    <script src="script.js"></script>
+</body>
+</html> 

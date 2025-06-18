@@ -1,0 +1,370 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #333;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header Styles */
+.header {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 0 0 20px 20px;
+    margin: 1rem 1rem 0 1rem;
+}
+
+.header h1 {
+    color: #2c3e50;
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+}
+
+.header h1 i {
+    color: #667eea;
+    margin-right: 0.5rem;
+}
+
+.header p {
+    color: #7f8c8d;
+    font-size: 1.1rem;
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    padding: 2rem 1rem;
+}
+
+/* Loading Styles */
+.loading-container {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Error Styles */
+.error-container {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.error-content i {
+    font-size: 4rem;
+    color: #e74c3c;
+    margin-bottom: 1rem;
+}
+
+.error-content h2 {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+}
+
+/* Data Container */
+.data-container {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+/* Experiment Header */
+.experiment-header {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.experiment-info h2 {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+}
+
+.metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.metadata-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+}
+
+.actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Button Styles */
+.btn {
+    padding: 0.7rem 1.2rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #667eea;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #5a6fd8;
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+/* JSON Display */
+.data-display {
+    padding: 2rem;
+}
+
+.json-object, .json-array {
+    border-left: 3px solid #667eea;
+    margin: 0.5rem 0;
+    padding-left: 1rem;
+}
+
+.json-key {
+    font-weight: 600;
+    color: #2c3e50;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 5px;
+    transition: background 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.json-key:hover {
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.json-key i {
+    font-size: 0.8rem;
+    color: #667eea;
+    transition: transform 0.2s ease;
+}
+
+.json-key.collapsed i {
+    transform: rotate(-90deg);
+}
+
+.json-value {
+    padding: 0.3rem 0.5rem;
+    margin-left: 1.5rem;
+}
+
+.json-value.string {
+    color: #27ae60;
+}
+
+.json-value.number {
+    color: #e67e22;
+}
+
+.json-value.boolean {
+    color: #9b59b6;
+}
+
+.json-value.null {
+    color: #95a5a6;
+    font-style: italic;
+}
+
+.json-content {
+    margin-left: 1rem;
+    border-left: 1px solid #ecf0f1;
+    padding-left: 1rem;
+}
+
+.json-content.collapsed {
+    display: none;
+}
+
+.array-index {
+    color: #667eea;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+/* Footer */
+.footer {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    padding: 1rem;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0 1rem 1rem 1rem;
+    border-radius: 20px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        margin: 0;
+    }
+    
+    .header {
+        margin: 0;
+        border-radius: 0;
+        padding: 1.5rem 1rem;
+    }
+    
+    .header h1 {
+        font-size: 2rem;
+    }
+    
+    .experiment-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .metadata {
+        justify-content: center;
+    }
+    
+    .actions {
+        justify-content: center;
+    }
+    
+    .btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.8rem;
+    }
+    
+    .footer {
+        margin: 0;
+        border-radius: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .header {
+        padding: 1rem;
+    }
+    
+    .header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .header p {
+        font-size: 1rem;
+    }
+    
+    .main-content {
+        padding: 1rem 0.5rem;
+    }
+    
+    .data-display {
+        padding: 1rem;
+    }
+    
+    .metadata {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .metadata-item {
+        justify-content: center;
+    }
+}
+
+/* Print Styles for PDF */
+@media print {
+    body {
+        background: white;
+        color: black;
+    }
+    
+    .header, .actions, .footer {
+        display: none;
+    }
+    
+    .data-container {
+        box-shadow: none;
+        border-radius: 0;
+    }
+    
+    .experiment-header {
+        background: #f8f9fa;
+        color: black;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .json-content.collapsed {
+        display: block !important;
+    }
+} 
