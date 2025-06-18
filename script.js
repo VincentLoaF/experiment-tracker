@@ -266,26 +266,18 @@ class ExperimentTracker {
             return;
         }
         
-        // Try multiple PDF export methods
-        if (await this.tryJsPDFExport()) {
-            return; // Success with jsPDF
-        } else if (this.tryBrowserPrint()) {
-            return; // Success with browser print
-        } else {
-            this.fallbackTextExport(); // Fallback to text download
-        }
+        // Use in-page print modal as primary method (most reliable)
+        console.log('Opening export options modal...');
+        this.showPrintableView();
     }
     
     async tryJsPDFExport() {
-        // Wait a bit for jsPDF to load if it's still loading
-        let attempts = 0;
-        while (!window.jsPDF && attempts < 20) {
-            await new Promise(resolve => setTimeout(resolve, 250));
-            attempts++;
-        }
+        // Load jsPDF on demand
+        console.log('Attempting to load jsPDF...');
+        const loaded = await window.loadJsPDF();
         
-        if (!window.jsPDF) {
-            console.log('jsPDF not available after waiting');
+        if (!loaded || !window.jsPDF) {
+            console.log('jsPDF could not be loaded');
             return false;
         }
         
@@ -393,10 +385,18 @@ class ExperimentTracker {
             <div style="padding: 30px;">
                 ${printContent}
                 <div style="margin-top: 30px; text-align: center; border-top: 1px solid #ddd; padding-top: 20px;">
-                    <button id="do-print" style="background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; margin: 0 10px; font-size: 16px;">🖨️ Print/Save as PDF</button>
-                    <button id="copy-data" style="background: #27ae60; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; margin: 0 10px; font-size: 16px;">📋 Copy Data</button>
-                    <button id="download-text" style="background: #e67e22; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; margin: 0 10px; font-size: 16px;">💾 Download Text</button>
-                    <button id="close-print" style="background: #95a5a6; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; margin: 0 10px; font-size: 16px;">❌ Close</button>
+                    <div style="margin-bottom: 15px;">
+                        <p style="color: #666; margin: 0 0 15px 0; font-size: 14px;"><strong>Choose your preferred export method:</strong></p>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 15px;">
+                        <button id="do-print" style="background: #667eea; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; min-width: 140px;">🖨️ Print as PDF</button>
+                        <button id="try-jspdf" style="background: #8e44ad; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; min-width: 140px;">📄 Generate PDF</button>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 15px;">
+                        <button id="copy-data" style="background: #27ae60; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; min-width: 140px;">📋 Copy Data</button>
+                        <button id="download-text" style="background: #e67e22; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; min-width: 140px;">💾 Download Text</button>
+                    </div>
+                    <button id="close-print" style="background: #95a5a6; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 14px;">❌ Close</button>
                 </div>
             </div>
         `;
@@ -407,6 +407,29 @@ class ExperimentTracker {
         // Add event listeners
         document.getElementById('do-print').addEventListener('click', () => {
             window.print();
+        });
+        
+        document.getElementById('try-jspdf').addEventListener('click', async () => {
+            const button = document.getElementById('try-jspdf');
+            const originalText = button.innerHTML;
+            button.innerHTML = '⏳ Generating...';
+            button.disabled = true;
+            
+            const success = await this.tryJsPDFExport();
+            if (success) {
+                button.innerHTML = '✅ PDF Generated!';
+                setTimeout(() => {
+                    document.body.removeChild(overlay);
+                }, 2000);
+            } else {
+                button.innerHTML = '❌ PDF Failed';
+                button.style.background = '#e74c3c';
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.style.background = '#8e44ad';
+                    button.disabled = false;
+                }, 3000);
+            }
         });
         
         document.getElementById('copy-data').addEventListener('click', () => {
