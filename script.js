@@ -116,9 +116,64 @@ class ExperimentTracker {
             document.getElementById('timestamp').textContent = 'Unknown';
         }
         
-        // Display JSON data
+        // Process and clean the data before rendering
+        const cleanedData = this.processExperimentalData(this.experimentData.data);
+        
+        // Display cleaned JSON data
         const jsonDisplay = document.getElementById('json-display');
-        jsonDisplay.innerHTML = this.renderJSON(this.experimentData.data, 'Experimental Data', 0, true);
+        jsonDisplay.innerHTML = this.renderJSON(cleanedData, 'Experimental Data', 0, true);
+    }
+    
+    processExperimentalData(data) {
+        // Filter out structural fields and reorganize data for clean display
+        const cleanedData = {};
+        
+        // Handle sections-based structure (like your test.json)
+        if (data.sections && Array.isArray(data.sections)) {
+            data.sections.forEach((section, index) => {
+                // Use section heading as the key, or default to Section N
+                const sectionName = section.heading || `Section ${index + 1}`;
+                const sectionData = {};
+                
+                if (section.attrs && Array.isArray(section.attrs)) {
+                    section.attrs.forEach(attr => {
+                        // Skip title types and structural fields
+                        if (attr.type === 'title' || !attr.name) return;
+                        
+                        // Use the actual name and value
+                        if (attr.hasOwnProperty('value')) {
+                            sectionData[attr.name] = attr.value;
+                        }
+                    });
+                }
+                
+                // Only add section if it has actual data
+                if (Object.keys(sectionData).length > 0) {
+                    cleanedData[sectionName] = sectionData;
+                }
+            });
+        }
+        
+        // Add other top-level fields that aren't structural metadata
+        const skipFields = [
+            'sections', 'attrs', 'type', 'name', 'value', 
+            'co2Val', 'heading', 'authorId', 'color',
+            'lastModified', 'totalCo2', 'metadata', 'id',
+            'filename', 'timestamp'
+        ];
+        
+        for (const [key, value] of Object.entries(data)) {
+            if (!skipFields.includes(key)) {
+                cleanedData[key] = value;
+            }
+        }
+        
+        // If subject exists and has meaningful data, add it as a clean section
+        if (data.subject && data.subject.name) {
+            cleanedData['Subject'] = data.subject.name;
+        }
+        
+        return cleanedData;
     }
     
     renderJSON(data, key = null, level = 0, isRoot = false) {
