@@ -151,15 +151,204 @@ class ExperimentTracker {
     
     createValueElement(value, type, key = null) {
         let html = '';
+        const processedValue = this.processMediaValue(value, key);
+        
         if (key) {
             html += `<div class="json-property">
                 <span class="json-key-label">${this.escapeHtml(key)}:</span>
-                <span class="json-value ${type}">${value}</span>
+                <span class="json-value ${type}">${processedValue}</span>
             </div>`;
         } else {
-            html += `<div class="json-value ${type}">${value}</div>`;
+            html += `<div class="json-value ${type}">${processedValue}</div>`;
         }
         return html;
+    }
+    
+    processMediaValue(value, key = null) {
+        // Check if this looks like a media file
+        if (typeof value === 'string') {
+            // Check for image patterns
+            if (this.isImageValue(value, key)) {
+                return this.createImageElement(value, key);
+            }
+            // Check for video patterns
+            if (this.isVideoValue(value, key)) {
+                return this.createVideoElement(value, key);
+            }
+            // Check for file patterns
+            if (this.isFileValue(value, key)) {
+                return this.createFileElement(value, key);
+            }
+        }
+        
+        // Return escaped HTML for regular text
+        return this.escapeHtml(String(value));
+    }
+    
+    isImageValue(value, key) {
+        const imageExtensions = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i;
+        const imageTypes = /photo|image|picture|img|snapshot|camera/i;
+        const mobileImageUri = /^content:\/\/.*images/i;
+        const httpImageUrl = /^https?:\/\/.*\.(jpg|jpeg|png|gif|bmp|webp|svg)/i;
+        
+        return imageExtensions.test(value) || 
+               (key && imageTypes.test(key)) ||
+               mobileImageUri.test(value) ||
+               httpImageUrl.test(value);
+    }
+    
+    isVideoValue(value, key) {
+        const videoExtensions = /\.(mp4|mov|avi|mkv|webm|m4v|3gp)$/i;
+        const videoTypes = /video|movie|clip|recording/i;
+        const mobileVideoUri = /^content:\/\/.*video/i;
+        const httpVideoUrl = /^https?:\/\/.*\.(mp4|mov|avi|mkv|webm|m4v)/i;
+        
+        return videoExtensions.test(value) || 
+               (key && videoTypes.test(key)) ||
+               mobileVideoUri.test(value) ||
+               httpVideoUrl.test(value);
+    }
+    
+    isFileValue(value, key) {
+        const fileExtensions = /\.(pdf|doc|docx|xls|xlsx|csv|txt|zip|rar)$/i;
+        const fileTypes = /file|document|attachment|data/i;
+        
+        return fileExtensions.test(value) || 
+               (key && fileTypes.test(key) && !this.isImageValue(value, key) && !this.isVideoValue(value, key));
+    }
+    
+    createImageElement(src, alt) {
+        const imageId = `img-${Math.random().toString(36).substr(2, 9)}`;
+        const displayName = this.getDisplayName(src, alt);
+        
+        if (this.isValidUrl(src)) {
+            return `
+                <div class="media-container image-container">
+                    <div class="media-info">
+                        <i class="fas fa-image"></i>
+                        <span class="media-name">${displayName}</span>
+                        <button class="media-toggle" onclick="toggleMedia('${imageId}')">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                    </div>
+                    <div class="media-content collapsed" id="${imageId}">
+                        <img src="${src}" alt="${this.escapeHtml(alt || 'Experiment Image')}" 
+                             class="experiment-image" 
+                             onerror="this.parentElement.innerHTML='<div class=error-media><i class=fas fa-exclamation-triangle></i> Image could not be loaded<br><small>${this.escapeHtml(src)}</small></div>'"
+                             onclick="openImageModal(this.src, '${this.escapeHtml(alt || 'Experiment Image')}')">
+                        <div class="image-caption">${this.escapeHtml(alt || 'Experiment Image')}</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="media-container image-container unavailable">
+                    <div class="media-info">
+                        <i class="fas fa-image"></i>
+                        <span class="media-name">${displayName}</span>
+                        <span class="media-status">📱 Mobile image (not accessible via web)</span>
+                    </div>
+                    <div class="media-path">${this.escapeHtml(src)}</div>
+                </div>
+            `;
+        }
+    }
+    
+    createVideoElement(src, alt) {
+        const videoId = `vid-${Math.random().toString(36).substr(2, 9)}`;
+        const displayName = this.getDisplayName(src, alt);
+        
+        if (this.isValidUrl(src)) {
+            return `
+                <div class="media-container video-container">
+                    <div class="media-info">
+                        <i class="fas fa-video"></i>
+                        <span class="media-name">${displayName}</span>
+                        <button class="media-toggle" onclick="toggleMedia('${videoId}')">
+                            <i class="fas fa-play"></i> Play
+                        </button>
+                    </div>
+                    <div class="media-content collapsed" id="${videoId}">
+                        <video controls class="experiment-video">
+                            <source src="${src}" type="video/mp4">
+                            <source src="${src}" type="video/webm">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="video-caption">${this.escapeHtml(alt || 'Experiment Video')}</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="media-container video-container unavailable">
+                    <div class="media-info">
+                        <i class="fas fa-video"></i>
+                        <span class="media-name">${displayName}</span>
+                        <span class="media-status">📱 Mobile video (not accessible via web)</span>
+                    </div>
+                    <div class="media-path">${this.escapeHtml(src)}</div>
+                </div>
+            `;
+        }
+    }
+    
+    createFileElement(src, alt) {
+        const displayName = this.getDisplayName(src, alt);
+        const extension = src.split('.').pop().toLowerCase();
+        const icon = this.getFileIcon(extension);
+        
+        if (this.isValidUrl(src)) {
+            return `
+                <div class="media-container file-container">
+                    <div class="media-info">
+                        <i class="fas fa-${icon}"></i>
+                        <span class="media-name">${displayName}</span>
+                        <a href="${src}" target="_blank" class="media-link">
+                            <i class="fas fa-external-link-alt"></i> Open
+                        </a>
+                    </div>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="media-container file-container unavailable">
+                    <div class="media-info">
+                        <i class="fas fa-${icon}"></i>
+                        <span class="media-name">${displayName}</span>
+                        <span class="media-status">📱 Local file (not accessible via web)</span>
+                    </div>
+                    <div class="media-path">${this.escapeHtml(src)}</div>
+                </div>
+            `;
+        }
+    }
+    
+    getDisplayName(src, alt) {
+        if (alt && alt.trim()) return alt;
+        if (src.includes('/')) return src.split('/').pop();
+        return src;
+    }
+    
+    isValidUrl(string) {
+        try {
+            const url = new URL(string);
+            return url.protocol === 'http:' || url.protocol === 'https:';
+        } catch (_) {
+            return false;
+        }
+    }
+    
+    getFileIcon(extension) {
+        const iconMap = {
+            'pdf': 'file-pdf',
+            'doc': 'file-word', 'docx': 'file-word',
+            'xls': 'file-excel', 'xlsx': 'file-excel',
+            'csv': 'file-csv',
+            'txt': 'file-alt',
+            'zip': 'file-archive', 'rar': 'file-archive',
+            'default': 'file'
+        };
+        return iconMap[extension] || iconMap['default'];
     }
     
     renderObject(obj, key, level, isRoot = false) {
@@ -601,6 +790,65 @@ function toggleSection(id) {
         section.classList.toggle('collapsed');
         key.classList.toggle('collapsed');
     }
+}
+
+// Global function for toggling media
+function toggleMedia(id) {
+    const media = document.getElementById(id);
+    const button = document.querySelector(`[onclick="toggleMedia('${id}')"]`);
+    
+    if (media && button) {
+        media.classList.toggle('collapsed');
+        const isCollapsed = media.classList.contains('collapsed');
+        
+        if (button.innerHTML.includes('View')) {
+            button.innerHTML = isCollapsed ? '<i class="fas fa-eye"></i> View' : '<i class="fas fa-eye-slash"></i> Hide';
+        } else if (button.innerHTML.includes('Play')) {
+            button.innerHTML = isCollapsed ? '<i class="fas fa-play"></i> Play' : '<i class="fas fa-pause"></i> Hide';
+            
+            // Pause video when hiding
+            if (isCollapsed) {
+                const video = media.querySelector('video');
+                if (video) video.pause();
+            }
+        }
+    }
+}
+
+// Global function for opening image modal
+function openImageModal(src, alt) {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 20000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        box-sizing: border-box;
+        cursor: zoom-out;
+    `;
+    
+    modal.innerHTML = `
+        <div style="position: relative; max-width: 90%; max-height: 90%;">
+            <img src="${src}" alt="${alt}" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div style="position: absolute; top: -40px; right: 0; background: rgba(255,255,255,0.9); padding: 5px 10px; border-radius: 5px; font-size: 14px; color: #333;">${alt}</div>
+            <button style="position: absolute; top: -40px; left: 0; background: rgba(255,255,255,0.9); border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 14px;" onclick="this.parentElement.parentElement.remove()">✕ Close</button>
+        </div>
+    `;
+    
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+    
+    document.body.appendChild(modal);
 }
 
 // Initialize the application when DOM is loaded
