@@ -35,9 +35,9 @@ class ExperimentTracker {
             this.loadExperimentData();
         });
         
-        // Export Text button
-        document.getElementById('export-text')?.addEventListener('click', () => {
-            this.exportToText();
+        // Export PDF button
+        document.getElementById('export-pdf')?.addEventListener('click', () => {
+            this.exportToPDF();
         });
         
         // Expand/Collapse buttons
@@ -449,20 +449,298 @@ class ExperimentTracker {
         });
     }
     
-    exportToText() {
+    async exportToPDF() {
         if (!this.isDataLoaded) {
-            alert('Please wait for the data to load before exporting.');
+            alert('Please wait for the data to load before exporting to PDF.');
             return;
         }
         
-        this.downloadTextFile();
+        // Use in-page print modal as primary method (most reliable)
+        console.log('Opening export options modal...');
+        this.showPrintableView();
     }
     
-
+    async tryJsPDFExport() {
+        // Load jsPDF on demand
+        console.log('Attempting to load jsPDF...');
+        const loaded = await window.loadJsPDF();
+        
+        if (!loaded || !window.jsPDF) {
+            console.log('jsPDF could not be loaded');
+            return false;
+        }
+        
+        try {
+            const { jsPDF } = window.jsPDF;
+            const pdf = new jsPDF();
+            
+            // Title
+            pdf.setFontSize(20);
+            pdf.text('Experimental Setup Data', 20, 30);
+            
+            // Metadata
+            pdf.setFontSize(12);
+            let yPos = 50;
+            pdf.text(`File: ${this.experimentData.filename || 'Unknown'}`, 20, yPos);
+            yPos += 10;
+            pdf.text(`ID: ${this.experimentId}`, 20, yPos);
+            yPos += 10;
+            
+            if (this.experimentData.timestamp) {
+                const date = this.experimentData.timestamp.toDate ? 
+                    this.experimentData.timestamp.toDate() : 
+                    new Date(this.experimentData.timestamp);
+                pdf.text(`Date: ${date.toLocaleString()}`, 20, yPos);
+                yPos += 20;
+            } else if (this.experimentData.metadata && this.experimentData.metadata.uploaded_at) {
+                const date = new Date(this.experimentData.metadata.uploaded_at);
+                pdf.text(`Date: ${date.toLocaleString()}`, 20, yPos);
+                yPos += 20;
+            }
+            
+            // JSON Data
+            pdf.setFontSize(10);
+            const jsonText = JSON.stringify(this.experimentData.data, null, 2);
+            const lines = pdf.splitTextToSize(jsonText, 170);
+            
+            lines.forEach(line => {
+                if (yPos > 280) {
+                    pdf.addPage();
+                    yPos = 20;
+                }
+                pdf.text(line, 20, yPos);
+                yPos += 5;
+            });
+            
+            // Save PDF
+            const timestamp = new Date().toISOString().split('T')[0];
+            const filename = `experiment_${this.experimentId.substring(0, 8)}_${timestamp}.pdf`;
+            pdf.save(filename);
+            
+            console.log('PDF exported successfully via jsPDF');
+            return true;
+            
+        } catch (error) {
+            console.error('Error exporting PDF via jsPDF:', error);
+            return false;
+        }
+    }
     
-
+    tryBrowserPrint() {
+        try {
+            // Instead of popup, create a printable view in the current page
+            this.showPrintableView();
+            console.log('Showing in-page printable view');
+            return true;
+            
+        } catch (error) {
+            console.error('Error with browser print method:', error);
+            return false;
+        }
+    }
     
-    downloadTextFile() {
+    showPrintableView() {
+        // Create overlay with printable content
+        const overlay = document.createElement('div');
+        overlay.id = 'print-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        `;
+        
+        const printContainer = document.createElement('div');
+        printContainer.style.cssText = `
+            background: white;
+            border-radius: 10px;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        `;
+        
+        const printContent = this.createPrintableContent();
+        printContainer.innerHTML = `
+            <div style="padding: 30px;">
+                ${printContent}
+                <div style="margin-top: 30px; text-align: center; border-top: 1px solid #ddd; padding-top: 20px;">
+                    <div style="margin-bottom: 15px;">
+                        <p style="color: #666; margin: 0 0 15px 0; font-size: 14px;"><strong>Choose your preferred export method:</strong></p>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 15px;">
+                        <button id="do-print" style="background: #667eea; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; min-width: 140px;">🖨️ Print as PDF</button>
+                        <button id="try-jspdf" style="background: #8e44ad; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; min-width: 140px;">📄 Generate PDF</button>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 15px;">
+                        <button id="copy-data" style="background: #27ae60; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; min-width: 140px;">📋 Copy Data</button>
+                        <button id="download-text" style="background: #e67e22; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; min-width: 140px;">💾 Download Text</button>
+                    </div>
+                    <button id="close-print" style="background: #95a5a6; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 14px;">❌ Close</button>
+                </div>
+            </div>
+        `;
+        
+        overlay.appendChild(printContainer);
+        document.body.appendChild(overlay);
+        
+        // Add event listeners
+        document.getElementById('do-print').addEventListener('click', () => {
+            window.print();
+        });
+        
+        document.getElementById('try-jspdf').addEventListener('click', async () => {
+            const button = document.getElementById('try-jspdf');
+            const originalText = button.innerHTML;
+            button.innerHTML = '⏳ Generating...';
+            button.disabled = true;
+            
+            const success = await this.tryJsPDFExport();
+            if (success) {
+                button.innerHTML = '✅ PDF Generated!';
+                setTimeout(() => {
+                    document.body.removeChild(overlay);
+                }, 2000);
+            } else {
+                button.innerHTML = '❌ PDF Failed';
+                button.style.background = '#e74c3c';
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.style.background = '#8e44ad';
+                    button.disabled = false;
+                }, 3000);
+            }
+        });
+        
+        document.getElementById('copy-data').addEventListener('click', () => {
+            this.copyDataToClipboard();
+        });
+        
+        document.getElementById('download-text').addEventListener('click', () => {
+            this.fallbackTextExport();
+        });
+        
+        document.getElementById('close-print').addEventListener('click', () => {
+            document.body.removeChild(overlay);
+        });
+        
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+            }
+        });
+        
+        // Add print styles
+        const printStyles = document.createElement('style');
+        printStyles.innerHTML = `
+            @media print {
+                body * {
+                    visibility: hidden;
+                }
+                #print-overlay, #print-overlay * {
+                    visibility: visible;
+                }
+                #print-overlay {
+                    position: static !important;
+                    background: white !important;
+                    padding: 0 !important;
+                }
+                #print-overlay > div {
+                    box-shadow: none !important;
+                    max-height: none !important;
+                    overflow: visible !important;
+                }
+                #print-overlay button {
+                    display: none !important;
+                }
+            }
+        `;
+        document.head.appendChild(printStyles);
+    }
+    
+    createPrintableContent() {
+        const timestamp = this.experimentData.timestamp ? 
+            (this.experimentData.timestamp.toDate ? 
+                this.experimentData.timestamp.toDate() : 
+                new Date(this.experimentData.timestamp)).toLocaleString() :
+            (this.experimentData.metadata && this.experimentData.metadata.uploaded_at ? 
+                new Date(this.experimentData.metadata.uploaded_at).toLocaleString() : 
+                'Unknown');
+                
+        return `
+            <div class="header">
+                <h1>Experimental Setup Data</h1>
+            </div>
+            <div class="metadata">
+                <p><strong>File:</strong> ${this.experimentData.filename || 'Unknown'}</p>
+                <p><strong>ID:</strong> ${this.experimentId}</p>
+                <p><strong>Date:</strong> ${timestamp}</p>
+            </div>
+            <div class="json-data">
+                <h3>Experimental Data:</h3>
+                ${JSON.stringify(this.experimentData.data, null, 2)}
+            </div>
+        `;
+    }
+    
+    copyDataToClipboard() {
+        try {
+            const timestamp = this.experimentData.timestamp ? 
+                (this.experimentData.timestamp.toDate ? 
+                    this.experimentData.timestamp.toDate() : 
+                    new Date(this.experimentData.timestamp)).toLocaleString() :
+                (this.experimentData.metadata && this.experimentData.metadata.uploaded_at ? 
+                    new Date(this.experimentData.metadata.uploaded_at).toLocaleString() : 
+                    'Unknown');
+                    
+            const content = `EXPERIMENTAL SETUP DATA
+============================
+
+File: ${this.experimentData.filename || 'Unknown'}
+ID: ${this.experimentId}
+Date: ${timestamp}
+
+EXPERIMENTAL DATA:
+${JSON.stringify(this.experimentData.data, null, 2)}`;
+
+            navigator.clipboard.writeText(content).then(() => {
+                alert('✅ Experimental data copied to clipboard! You can now paste it into any document.');
+                console.log('Data copied to clipboard successfully');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = content;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    alert('✅ Experimental data copied to clipboard! You can now paste it into any document.');
+                    console.log('Data copied to clipboard via fallback method');
+                } catch (err) {
+                    alert('❌ Could not copy to clipboard. Please copy the data manually.');
+                    console.error('Copy to clipboard failed:', err);
+                }
+                document.body.removeChild(textArea);
+            });
+        } catch (error) {
+            console.error('Error copying to clipboard:', error);
+            alert('❌ Could not copy to clipboard. Please try the download option instead.');
+        }
+    }
+    
+    fallbackTextExport() {
         try {
             const timestamp = this.experimentData.timestamp ? 
                 (this.experimentData.timestamp.toDate ? 

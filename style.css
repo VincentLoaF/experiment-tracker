@@ -581,4 +581,29 @@ body {
     }
 }
 
- 
+/* Print Styles for PDF */
+@media print {
+    body {
+        background: white;
+        color: black;
+    }
+    
+    .header, .actions, .footer {
+        display: none;
+    }
+    
+    .data-container {
+        box-shadow: none;
+        border-radius: 0;
+    }
+    
+    .experiment-header {
+        background: #f8f9fa;
+        color: black;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .json-content.collapsed {
+        display: block !important;
+    }
+} 

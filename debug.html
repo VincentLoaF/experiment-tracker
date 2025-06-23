@@ -6,13 +6,42 @@
     <title>Debug - Experiment Tracker</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-
+    <!-- jsPDF Library with multiple CDN fallbacks -->
+    <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
+    <script>
+        // Fallback CDN loading for jsPDF
+        window.addEventListener('load', () => {
+            console.log('jsPDF loaded from unpkg:', !!window.jsPDF);
+            
+            if (!window.jsPDF) {
+                console.log('First CDN failed, trying alternative...');
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                script.onload = () => {
+                    console.log('jsPDF loaded from cdnjs:', !!window.jsPDF);
+                };
+                script.onerror = () => {
+                    console.log('Second CDN failed, trying jsdelivr...');
+                    const script2 = document.createElement('script');
+                    script2.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+                    script2.onload = () => {
+                        console.log('jsPDF loaded from jsdelivr:', !!window.jsPDF);
+                    };
+                    script2.onerror = () => {
+                        console.error('All CDNs failed to load jsPDF');
+                    };
+                    document.head.appendChild(script2);
+                };
+                document.head.appendChild(script);
+            }
+        });
+    </script>
 </head>
 <body>
     <div class="container">
         <header class="header">
             <h1><i class="fas fa-flask"></i> Debug - Experiment Tracker</h1>
-            <p>Testing JSON Display and Text Export</p>
+            <p>Testing JSON Display and PDF Export</p>
         </header>
 
         <main class="main-content">
@@ -36,8 +65,8 @@
                         </div>
                     </div>
                     <div class="actions">
-                        <button id="export-text" class="btn btn-secondary">
-                            <i class="fas fa-file-alt"></i> Export Text
+                        <button id="export-pdf" class="btn btn-secondary">
+                            <i class="fas fa-file-pdf"></i> Export PDF
                         </button>
                         <button id="expand-all" class="btn btn-secondary">
                             <i class="fas fa-expand-alt"></i> Expand All
@@ -491,47 +520,47 @@
             });
         }
 
-        function exportToText() {
+        function exportToPDF() {
+            if (!window.jsPDF) {
+                alert('PDF export library is not available. Please refresh the page and try again.');
+                return;
+            }
+            
             try {
-                // Create text content
-                let textContent = '';
+                const { jsPDF } = window.jsPDF;
+                const pdf = new jsPDF();
                 
-                // Add header
-                textContent += '='.repeat(60) + '\n';
-                textContent += 'TEST EXPERIMENTAL SETUP DATA\n';
-                textContent += '='.repeat(60) + '\n\n';
+                pdf.setFontSize(20);
+                pdf.text('Test Experimental Setup Data', 20, 30);
                 
-                // Add metadata
-                textContent += 'File: test_experiment.json\n';
-                textContent += 'ID: test-123\n';
-                textContent += 'Date: 2025-01-18 10:30:00\n';
+                pdf.setFontSize(12);
+                let yPos = 50;
+                pdf.text('File: test_experiment.json', 20, yPos);
+                yPos += 10;
+                pdf.text('ID: test-123', 20, yPos);
+                yPos += 10;
+                pdf.text('Date: 2025-01-18 10:30:00', 20, yPos);
+                yPos += 20;
                 
-                textContent += '\n' + '-'.repeat(60) + '\n';
-                textContent += 'EXPERIMENT DATA\n';
-                textContent += '-'.repeat(60) + '\n\n';
+                pdf.setFontSize(10);
+                const jsonText = JSON.stringify(testData, null, 2);
+                const lines = pdf.splitTextToSize(jsonText, 170);
                 
-                // Add JSON data in readable format
-                textContent += JSON.stringify(testData, null, 2);
+                lines.forEach(line => {
+                    if (yPos > 280) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+                    pdf.text(line, 20, yPos);
+                    yPos += 5;
+                });
                 
-                // Create and download file
-                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename = `test_experiment_${timestamp}.txt`;
-                
-                const blob = new Blob([textContent], { type: 'text/plain' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                
-                alert('Text file exported successfully!');
+                pdf.save('test_experiment.pdf');
+                alert('PDF exported successfully!');
                 
             } catch (error) {
-                console.error('Error exporting text file:', error);
-                alert('Failed to export text file: ' + error.message);
+                console.error('Error exporting PDF:', error);
+                alert('Failed to export PDF: ' + error.message);
             }
         }
 
@@ -539,14 +568,14 @@
         document.addEventListener('DOMContentLoaded', () => {
             console.log('Debug page loaded');
             console.log('Test data:', testData);
-            console.log('Text export available: true');
+            console.log('jsPDF available:', !!window.jsPDF);
             
             // Render test data
             const jsonDisplay = document.getElementById('json-display');
             jsonDisplay.innerHTML = renderJSON(testData, 'Experimental Data', 0, true);
             
             // Set up event listeners
-            document.getElementById('export-text').addEventListener('click', exportToText);
+            document.getElementById('export-pdf').addEventListener('click', exportToPDF);
             document.getElementById('expand-all').addEventListener('click', () => toggleAllSections(false));
             document.getElementById('collapse-all').addEventListener('click', () => toggleAllSections(true));
         });
