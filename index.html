@@ -6,41 +6,7 @@
     <title>Experiment Tracker</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Optional jsPDF Library (loaded on demand) -->
-    <script>
-        // Load jsPDF on demand when user requests it
-        window.loadJsPDF = function() {
-            return new Promise((resolve) => {
-                if (window.jsPDF) {
-                    resolve(true);
-                    return;
-                }
-                
-                console.log('Loading jsPDF library...');
-                const script = document.createElement('script');
-                script.src = 'https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js';
-                script.onload = () => {
-                    console.log('jsPDF loaded from unpkg:', !!window.jsPDF);
-                    resolve(!!window.jsPDF);
-                };
-                script.onerror = () => {
-                    console.log('First CDN failed, trying alternative...');
-                    const script2 = document.createElement('script');
-                    script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-                    script2.onload = () => {
-                        console.log('jsPDF loaded from cdnjs:', !!window.jsPDF);
-                        resolve(!!window.jsPDF);
-                    };
-                    script2.onerror = () => {
-                        console.log('All CDNs failed to load jsPDF');
-                        resolve(false);
-                    };
-                    document.head.appendChild(script2);
-                };
-                document.head.appendChild(script);
-            });
-        };
-    </script>
+
 </head>
 <body>
     <div class="container">
@@ -89,8 +55,8 @@
                         </div>
                     </div>
                     <div class="actions">
-                        <button id="export-pdf" class="btn btn-secondary">
-                            <i class="fas fa-file-pdf"></i> Export PDF
+                        <button id="export-text" class="btn btn-secondary">
+                            <i class="fas fa-file-alt"></i> Export Text
                         </button>
                         <button id="expand-all" class="btn btn-secondary">
                             <i class="fas fa-expand-alt"></i> Expand All
@@ -108,7 +74,7 @@
         </main>
 
         <footer class="footer">
-            <p>&copy; 2025 Mechanical Engineering Research Lab | QR Experiment Tracker v1.0</p>
+            <p>&copy; 2025 Imperial College London Metal Forming Group | QR Experiment Tracker v1.0</p>
         </footer>
     </div>
 
